@@ -1,2 +1,2 @@
-# Phaino-
+# Phaino
 Keras interpretability library
