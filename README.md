@@ -1,2 +1,1 @@
-# Phaino
-Keras interpretability library
+ Interpretability library
