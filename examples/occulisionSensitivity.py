@@ -8,7 +8,7 @@ from urllib.request import urlretrieve
 import keras
 from keras.applications.imagenet_utils import decode_predictions
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-os.environ["KERAS_BACKEND"] = "jax"
+os.environ["KERAS_BACKEND"] = "openvino"
 
 from interpretabilityLibrary.methods.occlusionSensitivity import OcclusionSensitivity
 from interpretabilityLibrary.plot.vizualize import vizualize

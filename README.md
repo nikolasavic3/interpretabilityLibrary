@@ -1,1 +1,1 @@
- Interpretability library
+Simple library for interpreting Keras deep learning models. Currently implementing occlusion sensitivity analysis with plans to expand to more interpretability techniques. Supports different backends with  JIT-compatible functions.
