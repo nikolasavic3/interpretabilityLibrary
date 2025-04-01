@@ -9,8 +9,8 @@ class OcclusionSensitivity(Explainer):
     def __init__(
         self, 
         model: keras.Model, 
-        window_size: Tuple[int, int] = (8, 8),
-        stride: Tuple[int, int] = (4, 4),
+        window_size: Tuple[int, int] = (4, 4),  # Smaller window for finer detail
+        stride: Tuple[int, int] = (2, 2),       # Smaller stride for better coverage
         occlusion_value: float = 0.0
     ):
         """Initialize the explainer."""
@@ -85,8 +85,9 @@ class OcclusionSensitivity(Explainer):
             baseline_preds[i, targets[i]] for i in range(batch_size)
         ])
         
-        # Initialize attribution map
+        # Initialize attribution map and count map
         occlusion_maps = ops.zeros((batch_size, height, width, 1))
+        count_maps = ops.zeros((batch_size, height, width, 1))  # Track coverage count
         
         # Function to create occluded inputs and get predictions
         def occlude_and_predict(inputs, h, w):
@@ -129,10 +130,17 @@ class OcclusionSensitivity(Explainer):
                 for b in range(batch_size):
                     # Create a patch of the score drop value
                     score_patch = ops.ones((window_height, window_width, 1)) * score_drops[b]
+                    count_patch = ops.ones((window_height, window_width, 1))
                     
                     # Add to existing values in the map
                     current_values = ops.slice(
                         occlusion_maps,
+                        [b, h, w, 0],
+                        [1, window_height, window_width, 1]
+                    )
+                    
+                    current_counts = ops.slice(
+                        count_maps,
                         [b, h, w, 0],
                         [1, window_height, window_width, 1]
                     )
@@ -143,5 +151,29 @@ class OcclusionSensitivity(Explainer):
                         [b, h, w, 0],
                         current_values + score_patch[None, ...]
                     )
+                    
+                    # Update the count map
+                    count_maps = ops.slice_update(
+                        count_maps,
+                        [b, h, w, 0],
+                        current_counts + count_patch[None, ...]
+                    )
+        
+        # Compute average by dividing by count
+        # Add small epsilon to avoid division by zero
+        epsilon = 1e-10
+        occlusion_maps = occlusion_maps / (count_maps + epsilon)
+        
+        # Normalize to [0, 1] range per sample
+        for b in range(batch_size):
+            sample_map = occlusion_maps[b:b+1]
+            min_val = ops.min(sample_map)
+            max_val = ops.max(sample_map)
+            if max_val > min_val:  # Only normalize if there's a range
+                occlusion_maps = ops.slice_update(
+                    occlusion_maps,
+                    [b, 0, 0, 0],
+                    (sample_map - min_val) / (max_val - min_val)
+                )
         
         return occlusion_maps
